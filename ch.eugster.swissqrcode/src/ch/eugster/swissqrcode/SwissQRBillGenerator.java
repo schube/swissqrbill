@@ -183,7 +183,7 @@ public class SwissQRBillGenerator
 					catch (IOException e)
 					{
 						ObjectNode msg = mapper.createObjectNode();
-						msg.put("io_exception", "Creation of output file '" + output.getFileName() + "' failed.");
+						msg.put("io_exception", e.getMessage());
 						result.add(msg);
 					}
 				}
