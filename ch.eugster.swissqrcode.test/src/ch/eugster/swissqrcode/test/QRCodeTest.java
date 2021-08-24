@@ -3,7 +3,10 @@ package ch.eugster.swissqrcode.test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -20,8 +23,48 @@ import net.codecrete.qrbill.generator.OutputSize;
 
 public class QRCodeTest 
 {
-	private final String output = (System.getProperty("user.home") + File.separator + "bill.pdf").replace("\\", "/");
+	private String output;
 
+	private String invoice;
+
+	@BeforeEach
+	public void beforeEach() throws URISyntaxException
+	{
+		String out = (System.getProperty("user.home") + File.separator + "bill.pdf");
+		output = new File(out).toURI().toASCIIString();
+		URI uri = QRCodeTest.class.getResource("/invoice.pdf").toURI();
+		invoice = uri.toASCIIString();
+	}
+	
+	@Test
+	public void testAppendToInvoicePDF() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode node = mapper.createObjectNode();
+		node.put("output", output);
+		node.put("output_size", OutputSize.QR_BILL_EXTRA_SPACE.name());
+		node.put("invoice", invoice);
+		node.put("graphics_format", GraphicsFormat.PDF.name());
+		node.put("language", Language.DE.name());
+		node.put("iban", "CH4431999123000889012");
+		node.put("amount", 199.95);
+		node.put("currency", "CHF");
+		ObjectNode creditor = node.putObject("creditor");
+		creditor.put("name", "Robert Schneider AG");
+		creditor.put("address", "Rue du Lac 1268/2/22");
+		creditor.put("city", "2501 Biel");
+		creditor.put("country", "CH");
+		node.put("reference", "210000000003139471430009017");
+		node.put("message", "Abonnement für 2020");
+		ObjectNode debtor = node.putObject("debtor");
+		debtor.put("name", "Pia-Maria Rutschmann-Schnyder");
+		debtor.put("address", "Grosse Marktgasse 28");
+		debtor.put("city", "9400 Rorschach");
+		debtor.put("country", "CH");
+		Object result = new SwissQRBillGenerator().generate(node.toString());
+		assertEquals("OK", result);	
+	}
+	
 	@Test
 	public void testMissingOutputSize() throws JsonMappingException, JsonProcessingException
 	{
@@ -119,7 +162,7 @@ public class QRCodeTest
 		JsonNode resultNode = mapper.readTree(result.toString());
 		assertEquals(1, resultNode.size());
 		assertEquals(JsonNodeType.ARRAY, resultNode.getNodeType());
-		assertEquals("'output' must be a valid file pathname", resultNode.get(0).get("illegal_argument_exception").asText());
+		assertEquals("'output' must be a valid URI", resultNode.get(0).get("illegal_argument_exception").asText());
 	}
 	
 	@Test
@@ -153,7 +196,7 @@ public class QRCodeTest
 		JsonNode resultNode = mapper.readTree(result.toString());
 		assertEquals(1, resultNode.size());
 		assertEquals(JsonNodeType.ARRAY, resultNode.getNodeType());
-		assertEquals("No such file or directory", resultNode.get(0).get("io_exception").asText());
+		assertEquals("'output' must be a valid URI", resultNode.get(0).get("illegal_argument_exception").asText());
 	}
 	
 	@Test

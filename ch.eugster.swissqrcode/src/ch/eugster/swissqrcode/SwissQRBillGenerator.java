@@ -5,6 +5,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -16,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import net.codecrete.qrbill.canvas.PDFCanvas;
 import net.codecrete.qrbill.generator.Address;
 import net.codecrete.qrbill.generator.Bill;
 import net.codecrete.qrbill.generator.BillFormat;
@@ -63,21 +68,23 @@ public class SwissQRBillGenerator
 			msg.put("json_processing_exception", e.getMessage());
 			result.add(msg);
 		}
+
 		if (node != null)
 		{
-			File output = null;
+			Path output = null;
 			try
 			{
-				output = new File(node.get("output").asText());
+				URI uri = new URI(node.get("output").asText());
+				output = Paths.get(uri);
 			}
-			catch (NullPointerException e)
+			catch (Exception e)
 			{
 				ObjectNode msg = mapper.createObjectNode();
-				IllegalArgumentException iae = new IllegalArgumentException("'output' must be a valid file pathname");
+				IllegalArgumentException iae = new IllegalArgumentException("'output' must be a valid URI");
 				msg.put("illegal_argument_exception", iae.getMessage());
 				result.add(msg);
-			}
-			
+			} 
+
 			BillFormat format = null;
 			try
 			{
@@ -148,27 +155,69 @@ public class SwissQRBillGenerator
 			ValidationResult validation = QRBill.validate(bill);
 			if (validation.isValid() && result.isEmpty())
 			{
-				// Generate QR bill
-				byte[] bytes = QRBill.generate(bill);
-				try 
+				URI invoice = null;
+				try
 				{
-					output.createNewFile();
-					OutputStream os = new FileOutputStream(output);
-					os.write(bytes);
-					os.close();
-					return "OK";
-				} 
-				catch (FileNotFoundException e) 
+					if (node.get("invoice") != null && node.get("invoice").asText() != null)
+					{
+						invoice = new URI(node.get("invoice").asText());
+					}
+				}
+				catch (URISyntaxException e)
 				{
 					ObjectNode msg = mapper.createObjectNode();
-					msg.put("file_not_found_exception", e.getMessage());
+					IllegalArgumentException iae = new IllegalArgumentException("'invoice' must be a valid URI");
+					msg.put("uri_syntax_exception", iae.getMessage());
 					result.add(msg);
-				} 
-				catch (IOException e) 
+				}
+				
+				if (!Objects.isNull(invoice))
 				{
-					ObjectNode msg = mapper.createObjectNode();
-					msg.put("io_exception", e.getMessage());
-					result.add(msg);
+					Path invoiceWithoutQRBill = Paths.get(invoice);
+					try
+					{
+						PDFCanvas canvas = new PDFCanvas(invoiceWithoutQRBill, PDFCanvas.LAST_PAGE);
+						QRBill.draw(bill, canvas);
+						canvas.saveAs(output);
+						return "OK";
+					}
+					catch (IOException e)
+					{
+						ObjectNode msg = mapper.createObjectNode();
+						msg.put("io_exception", "Creation of output file '" + output.getFileName() + "' failed.");
+						result.add(msg);
+					}
+				}
+				else
+				{
+					// Generate QR bill
+					byte[] bytes = QRBill.generate(bill);
+					try 
+					{
+						if (output.toFile().exists())
+						{
+							output.toFile().delete();
+						}
+						if (output.toFile().createNewFile())
+						{
+							OutputStream os = new FileOutputStream(output.toFile());
+							os.write(bytes);
+							os.close();
+							return "OK";
+						}
+					} 
+					catch (FileNotFoundException e) 
+					{
+						ObjectNode msg = mapper.createObjectNode();
+						msg.put("file_not_found_exception", e.getMessage());
+						result.add(msg);
+					} 
+					catch (IOException e) 
+					{
+						ObjectNode msg = mapper.createObjectNode();
+						msg.put("io_exception", e.getMessage());
+						result.add(msg);
+					}
 				}
 			}
 			else
@@ -262,16 +311,13 @@ public class SwissQRBillGenerator
 		}
 		return format;
 	}
-
+	
 	private String buildOutputSizeErrorMessage()
 	{
 		StringBuilder builder = new StringBuilder();
 		for (OutputSize size : OutputSize.values())
 		{
-			if (!size.getClass().isAnnotationPresent(Deprecated.class))
-			{
-				builder = builder.append(size.name() + ", ");
-			}
+			builder = builder.append(size.name() + ", ");
 		}
 		String values = builder.toString().trim();
 		values = values.substring(0, values.length() - 1);
@@ -283,14 +329,10 @@ public class SwissQRBillGenerator
 		StringBuilder builder = new StringBuilder();
 		for (GraphicsFormat format : GraphicsFormat.values())
 		{
-			if (!format.getClass().isAnnotationPresent(Deprecated.class))
-			{
-				builder = builder.append(format.name() + ", ");
-			}
+			builder = builder.append(format.name() + ", ");
 		}
 		String values = builder.toString().trim();
 		values = values.substring(0, values.length() - 1);
 		return "'graphics_format' must be set with one of " + values;
 	}
-	
 }
