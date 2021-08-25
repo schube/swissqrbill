@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -73,8 +74,19 @@ public class SwissQRBillGenerator
 			Path output = null;
 			try
 			{
-				URI uri = new URI(node.get("output").asText());
-				output = Paths.get(uri);
+				try
+				{
+					URI uri = new URI(node.get("output").asText());
+					output = Paths.get(uri);
+				}
+				catch (URISyntaxException e)
+				{
+					output = Paths.get(node.get("output").asText());
+				}
+				catch (FileSystemNotFoundException e)
+				{
+					output = Paths.get(node.get("output").asText());
+				}
 			}
 			catch (Exception e)
 			{
@@ -154,28 +166,29 @@ public class SwissQRBillGenerator
 			ValidationResult validation = QRBill.validate(bill);
 			if (validation.isValid() && result.isEmpty())
 			{
-				URI invoice = null;
-				try
+				Path invoice = null;
+				if (node.get("invoice") != null && node.get("invoice").asText() != null)
 				{
-					if (node.get("invoice") != null && node.get("invoice").asText() != null)
+					try
 					{
-						invoice = new URI(node.get("invoice").asText());
+						URI uri = new URI(node.get("invoice").asText());
+						invoice = Paths.get(uri);
 					}
-				}
-				catch (URISyntaxException e)
-				{
-					ObjectNode msg = mapper.createObjectNode();
-					IllegalArgumentException iae = new IllegalArgumentException("'invoice' must be a valid URI");
-					msg.put("uri_syntax_exception", iae.getMessage());
-					result.add(msg);
+					catch (URISyntaxException e)
+					{
+						invoice = Paths.get(node.get("invoice").asText());
+					}
+					catch (FileSystemNotFoundException e)
+					{
+						invoice = Paths.get(node.get("invoice").asText());
+					}
 				}
 				
 				if (!Objects.isNull(invoice))
 				{
-					Path invoiceWithoutQRBill = Paths.get(invoice);
 					try
 					{
-						PDFCanvas canvas = new PDFCanvas(invoiceWithoutQRBill, PDFCanvas.LAST_PAGE);
+						PDFCanvas canvas = new PDFCanvas(invoice, PDFCanvas.LAST_PAGE);
 						QRBill.draw(bill, canvas);
 						canvas.saveAs(output);
 						return "OK";

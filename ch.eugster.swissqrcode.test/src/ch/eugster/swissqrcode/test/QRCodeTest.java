@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Paths;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -267,7 +268,26 @@ public class QRCodeTest
 	}
 	
 	@Test
-	public void testWithOriginalJsonStringFromFileMakerForQRCodeOnly()
+	public void testWithOriginalJsonStringFromFileMakerForQRCodeOnlyasPath() throws URISyntaxException
+	{
+		String out = Paths.get(new URI(output)).toFile().getAbsolutePath().replace('\\', '/');
+		String param = "{\"output\":\"" + out + "\", \"graphics_format\" : \"PDF\", \"output_size\" : \"QR_BILL_ONLY\", \"amount\":199.95,\"creditor\":{\"address\":\"Rue du Lac 1268/2/22\",\"city\":\"2501 Biel\",\"country\":\"CH\",\"name\":\"Robert Schneider AG\"},\"currency\":\"CHF\",\"debtor\":{\"address\":\"Grosse Marktgasse 28\",\"city\":\"9400 Rorschach\",\"country\":\"CH\",\"name\":\"Pia-Maria Rutschmann-Schnyder\"},\"iban\":\"CH4431999123000889012\",\"message\":\"Abonnement für 2020\",\"reference\":\"210000000003139471430009017\"}";
+		Object result = new SwissQRBillGenerator().generate(param);
+		assertEquals("OK", result);	
+	}
+
+	@Test
+	public void testWithOriginalJsonStringFromFileMakerForQRBillOnlyWithInvoiceAsPaths() throws URISyntaxException
+	{
+		String out = Paths.get(new URI(output)).toFile().getAbsolutePath().replace('\\', '/');
+		String bill = Paths.get(new URI(invoice)).toFile().getAbsolutePath().replace('\\', '/');
+		String param = "{\"invoice\" : \"" + bill + "\", \"output\" : \"" + out + "\", \"graphics_format\" : \"PDF\", \"output_size\" : \"QR_BILL_EXTRA_SPACE\", \"amount\":199.95,\"creditor\":{\"address\":\"Rue du Lac 1268/2/22\",\"city\":\"2501 Biel\",\"country\":\"CH\",\"name\":\"Robert Schneider AG\"},\"currency\":\"CHF\",\"debtor\":{\"address\":\"Grosse Marktgasse 28\",\"city\":\"9400 Rorschach\",\"country\":\"CH\",\"name\":\"Pia-Maria Rutschmann-Schnyder\"},\"iban\":\"CH4431999123000889012\",\"message\":\"Abonnement für 2020\",\"reference\":\"210000000003139471430009017\"}";
+		Object result = new SwissQRBillGenerator().generate(param);
+		assertEquals("OK", result);	
+	}
+
+	@Test
+	public void testWithOriginalJsonStringFromFileMakerForQRCodeOnlyWithURIs()
 	{
 		String param = "{\"output\":\"" + output + "\", \"graphics_format\" : \"PDF\", \"output_size\" : \"QR_BILL_ONLY\", \"amount\":199.95,\"creditor\":{\"address\":\"Rue du Lac 1268/2/22\",\"city\":\"2501 Biel\",\"country\":\"CH\",\"name\":\"Robert Schneider AG\"},\"currency\":\"CHF\",\"debtor\":{\"address\":\"Grosse Marktgasse 28\",\"city\":\"9400 Rorschach\",\"country\":\"CH\",\"name\":\"Pia-Maria Rutschmann-Schnyder\"},\"iban\":\"CH4431999123000889012\",\"message\":\"Abonnement für 2020\",\"reference\":\"210000000003139471430009017\"}";
 		Object result = new SwissQRBillGenerator().generate(param);
@@ -277,7 +297,7 @@ public class QRCodeTest
 	@Test
 	public void testWithOriginalJsonStringFromFileMakerForQRBill()
 	{
-		String param = "{\"output\":\"" + output + "\", \"graphics_format\" : \"PDF\", \"output_size\" : \"QR_BILL_ONLY\", \"amount\":199.95,\"creditor\":{\"address\":\"Rue du Lac 1268/2/22\",\"city\":\"2501 Biel\",\"country\":\"CH\",\"name\":\"Robert Schneider AG\"},\"currency\":\"CHF\",\"debtor\":{\"address\":\"Grosse Marktgasse 28\",\"city\":\"9400 Rorschach\",\"country\":\"CH\",\"name\":\"Pia-Maria Rutschmann-Schnyder\"},\"iban\":\"CH4431999123000889012\",\"message\":\"Abonnement für 2020\",\"reference\":\"210000000003139471430009017\"}";
+		String param = "{\"invoice\":\"file:///C:/Users/christian/invoice.pdf\",\"output\" : \"file:///C:/Users/christian/bill.pdf\",\"output_size\" : \"QR_BILL_EXTRA_SPACE\",\"graphics_format\" : \"PDF\",\"iban\" : \"CH4431999123000889012\",\"amount\" : 199.95,\"currency\" : \"CHF\",\"creditor\" : { \"name\" : \"Robert Schneider AG\",\"address\" : \"Rue du Lac 1268/2/22\",\"city\" : \"2501 Biel\",\"country\" : \"CH\"},\"reference\" : \"210000000003139471430009017\",\"message\" : \"Abonnement für 2020\",\"debtor\" : {\"name\" : \"Pia-Maria Rutschmann-Schnyder\",\"address\" : \"Grosse Marktgasse 28\",\"city\" : \"9400 Rorschach\",\"country\" : \"CH\"}}";
 		Object result = new SwissQRBillGenerator().generate(param);
 		assertEquals("OK", result);	
 	}
