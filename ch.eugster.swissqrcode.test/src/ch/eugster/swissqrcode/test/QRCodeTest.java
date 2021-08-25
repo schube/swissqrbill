@@ -55,7 +55,7 @@ public class QRCodeTest
 		creditor.put("address", "Rue du Lac 1268/2/22");
 		creditor.put("city", "2501 Biel");
 		creditor.put("country", "CH");
-		node.put("reference", "210000000003139471430009017");
+		node.put("reference", "00000000003139471430009017");
 		node.put("message", "Abonnement für 2020");
 		ObjectNode debtor = node.putObject("debtor");
 		debtor.put("name", "Pia-Maria Rutschmann-Schnyder");

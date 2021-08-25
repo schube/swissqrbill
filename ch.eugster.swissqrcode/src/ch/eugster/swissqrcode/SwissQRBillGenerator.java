@@ -131,22 +131,14 @@ public class SwissQRBillGenerator
 			bill.setCreditor(creditor);
 	
 			// more bill data
-			String ref = null;
-			JsonNode reference = node.get("reference");
-			if (!Objects.isNull(reference))
+			String reference = (Objects.isNull(node.get("reference")) || node.get("reference").asText() == null) ? "" : node.get("reference").asText();
+			if (reference.length() == 27)
 			{
-				if (!reference.asText().trim().isEmpty())
-				{
-					ref = reference.asText();
-				}
+				bill.setReference(reference);
 			}
-			try
+			else
 			{
-				bill.setReference(ref);
-			}
-			catch (IllegalArgumentException e)
-			{
-				bill.createAndSetQRReference(ref);
+				bill.createAndSetQRReference(reference);
 			}
 			bill.setUnstructuredMessage(node.get("message").asText());
 	
