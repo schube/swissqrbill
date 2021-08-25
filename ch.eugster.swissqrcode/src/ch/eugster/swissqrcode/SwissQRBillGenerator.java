@@ -120,7 +120,7 @@ public class SwissQRBillGenerator
 				// Setup bill
 				bill.setFormat(format);
 				JsonNode amount = node.get("amount");
-				bill.setAmountFromDouble(amount == null ? null : node.get("amount").asDouble());
+				bill.setAmountFromDouble(amount.asDouble() == 0 ? null : node.get("amount").asDouble());
 				bill.setCurrency(node.get("currency").asText());
 				bill.setReferenceType(Bill.REFERENCE_TYPE_NO_REF);
 		
