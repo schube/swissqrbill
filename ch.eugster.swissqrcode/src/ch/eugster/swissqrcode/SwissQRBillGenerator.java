@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystemNotFoundException;
@@ -76,16 +77,16 @@ public class SwissQRBillGenerator
 			{
 				try
 				{
-					URI uri = new URI(node.get("output").asText());
+					URI uri = new URI(node.get("path").get("output").asText());
 					output = Paths.get(uri);
 				}
 				catch (URISyntaxException e)
 				{
-					output = Paths.get(node.get("output").asText());
+					output = Paths.get(node.get("path").get("output").asText());
 				}
 				catch (FileSystemNotFoundException e)
 				{
-					output = Paths.get(node.get("output").asText());
+					output = Paths.get(node.get("path").get("output").asText());
 				}
 			}
 			catch (Exception e)
@@ -96,62 +97,105 @@ public class SwissQRBillGenerator
 				result.add(msg);
 			} 
 
-			BillFormat format = null;
+			Bill bill = new Bill();
 			try
 			{
-				format = new BillFormat();
-				format.setFontFamily("Arial");
-				format.setGraphicsFormat(selectGraphicsFormat(node));
-				format.setLanguage(guessLanguage(node));
-				format.setOutputSize(selectOutputSize(node));
-			}
-			catch (IllegalArgumentException e)
-			{
-				ObjectNode msg = mapper.createObjectNode();
-				msg.put("illegal_argument_exception", e.getMessage());
-				result.add(msg);
-			}
-			
+				BillFormat format = null;
+				try
+				{
+					format = new BillFormat();
+					format.setFontFamily("Arial");
+					format.setGraphicsFormat(selectGraphicsFormat(node.get("form")));
+					format.setLanguage(guessLanguage(node.get("form")));
+					format.setOutputSize(selectOutputSize(node.get("form")));
+				}
+				catch (IllegalArgumentException e)
+				{
+					ObjectNode msg = mapper.createObjectNode();
+					msg.put("illegal_argument_exception", e.getMessage());
+					result.add(msg);
+				}
+				
 	
-			// Setup bill
-			Bill bill = new Bill();
-			bill.setFormat(format);
-			bill.setAccount(node.get("iban").asText());
-			JsonNode amount = node.get("amount");
-			bill.setAmountFromDouble(amount == null ? null : node.get("amount").asDouble());
-			bill.setCurrency(node.get("currency").asText());
-	//		bill.setReferenceType(Bill.REFERENCE_TYPE_NO_REF);
-	
-			// Set creditor
-			Address creditor = new Address();
-			creditor.setName(node.get("creditor").get("name").asText());
-			creditor.setAddressLine1(node.get("creditor").get("address").asText());
-			creditor.setAddressLine2(node.get("creditor").get("city").asText());
-			creditor.setCountryCode(node.get("creditor").get("country").asText());
-			bill.setCreditor(creditor);
-	
-			// more bill data
-			String reference = (Objects.isNull(node.get("reference")) || node.get("reference").asText() == null) ? "" : node.get("reference").asText();
-			if (reference.length() == 27)
-			{
-				bill.setReference(reference);
+				// Setup bill
+				bill.setFormat(format);
+				JsonNode amount = node.get("amount");
+				bill.setAmountFromDouble(amount == null ? null : node.get("amount").asDouble());
+				bill.setCurrency(node.get("currency").asText());
+				bill.setReferenceType(Bill.REFERENCE_TYPE_NO_REF);
+		
+				// Set creditor
+				Address creditor = new Address();
+				creditor.setName(node.get("creditor").get("name").asText());
+				creditor.setAddressLine1(node.get("creditor").get("address").asText());
+				creditor.setAddressLine2(node.get("creditor").get("city").asText());
+				creditor.setCountryCode(node.get("creditor").get("country").asText());
+				bill.setCreditor(creditor);
+				bill.setAccount(node.get("iban").asText());
+		
+				// more bill data
+				StringBuilder reference = new StringBuilder();
+				if (Objects.isNull(node.get("reference")))
+				{
+					if (node.get("invoice") != null)
+					{
+						try
+						{
+							reference = reference.append(new BigInteger(node.get("invoice").asText()).toString());
+						}
+						catch (NumberFormatException e)
+						{
+							// Do nothing
+						}
+					}
+					if (node.get("debtor").get("number") != null)
+					{
+						try
+						{
+							reference = reference.append(new BigInteger(node.get("debtor").get("number").asText()).toString());
+						}
+						catch (NumberFormatException e)
+						{
+							// Do nothing
+						}
+					}
+				}
+				else
+				{
+					try
+					{
+						reference = reference.append(new BigInteger(node.get("reference").asText()).toString());
+					}
+					catch (NumberFormatException e)
+					{
+						// Do nothing: reference is already initialized with ""
+					}
+				}
+				if (reference.length() == 27)
+				{
+					bill.setReference(reference.toString());
+				}
+				else
+				{
+					bill.createAndSetQRReference(reference.toString());
+				}
+				bill.setUnstructuredMessage(node.get("message").asText());
+		
+				// Set debtor
+				JsonNode debtor = node.get("debtor");
+				if (!Objects.isNull(debtor))
+				{
+					Address address = new Address();
+					address.setName(debtor.get("name").asText());
+					address.setAddressLine1(debtor.get("address").asText());
+					address.setAddressLine2(debtor.get("city").asText());
+					address.setCountryCode(debtor.get("country").asText());
+					bill.setDebtor(address);
+				}
 			}
-			else
+			catch (Exception e)
 			{
-				bill.createAndSetQRReference(reference);
-			}
-			bill.setUnstructuredMessage(node.get("message").asText());
-	
-			// Set debtor
-			JsonNode debtor = node.get("debtor");
-			if (!Objects.isNull(debtor))
-			{
-				Address address = new Address();
-				address.setName(debtor.get("name").asText());
-				address.setAddressLine1(debtor.get("address").asText());
-				address.setAddressLine2(debtor.get("city").asText());
-				address.setCountryCode(debtor.get("country").asText());
-				bill.setDebtor(address);
+				System.out.println();
 			}
 	
 			// Validate QR bill
@@ -159,20 +203,20 @@ public class SwissQRBillGenerator
 			if (validation.isValid() && result.isEmpty())
 			{
 				Path invoice = null;
-				if (node.get("invoice") != null && node.get("invoice").asText() != null)
+				if (node.get("path").get("invoice") != null && node.get("path").get("invoice").asText() != null)
 				{
 					try
 					{
-						URI uri = new URI(node.get("invoice").asText());
+						URI uri = new URI(node.get("path").get("invoice").asText());
 						invoice = Paths.get(uri);
 					}
 					catch (URISyntaxException e)
 					{
-						invoice = Paths.get(node.get("invoice").asText());
+						invoice = Paths.get(node.get("path").get("invoice").asText());
 					}
 					catch (FileSystemNotFoundException e)
 					{
-						invoice = Paths.get(node.get("invoice").asText());
+						invoice = Paths.get(node.get("path").get("invoice").asText());
 					}
 				}
 				
@@ -188,7 +232,7 @@ public class SwissQRBillGenerator
 					catch (IOException e)
 					{
 						ObjectNode msg = mapper.createObjectNode();
-						msg.put("io_exception", e.getMessage());
+						msg.put("io_exception", "Source path '" + e.getMessage() + "' does not exist");
 						result.add(msg);
 					}
 				}
@@ -272,21 +316,24 @@ public class SwissQRBillGenerator
 	
 	private OutputSize selectOutputSize(JsonNode node) throws IllegalArgumentException
 	{
-		JsonNode outputType = node.get("output_size");
-		if (outputType == null || outputType.asText() == null || outputType.asText().trim().isEmpty())
-		{
-			throw new IllegalArgumentException(buildOutputSizeErrorMessage());
-		}
 		OutputSize outputSize = null;
+		JsonNode size = node.get("output_size");
+		if (size == null || size.asText() == null || size.asText().trim().isEmpty())
+		{
+			if (node.get("path").get("invoice") == null)
+			{
+				outputSize = OutputSize.A4_PORTRAIT_SHEET;
+			}
+			else
+			{
+				outputSize = OutputSize.QR_BILL_EXTRA_SPACE;
+			}
+		}
 		try
 		{
-			outputSize = OutputSize.valueOf(outputType.asText());
+			outputSize = OutputSize.valueOf(size.asText());
 		}
 		catch (IllegalArgumentException e)
-		{
-			throw new IllegalArgumentException(buildOutputSizeErrorMessage());
-		}
-		if (outputSize == null || outputSize.getClass().isAnnotationPresent(Deprecated.class))
 		{
 			throw new IllegalArgumentException(buildOutputSizeErrorMessage());
 		}
@@ -339,4 +386,5 @@ public class SwissQRBillGenerator
 		values = values.substring(0, values.length() - 1);
 		return "'graphics_format' must be set with one of " + values;
 	}
+	
 }
