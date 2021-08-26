@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Paths;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import ch.eugster.swissqrcode.SwissQRBillGenerator;
@@ -242,11 +241,12 @@ public class QRCodeTest
 	@Test
 	public void testDocumentToAppendToDoesNotExist() throws JsonMappingException, JsonProcessingException
 	{
+		String nonExistentPath = (System.getProperty("user.home") + File.separator + UUID.randomUUID() + ".pdf").replace('\\', '/');
 		ObjectMapper mapper = new ObjectMapper();
 		ObjectNode node = mapper.createObjectNode();
 		ObjectNode path = node.putObject("path");
 		path.put("output", output);
-		path.put("invoice", "C:/Users/christian/x.pdf");
+		path.put("invoice", nonExistentPath);
 		ObjectNode form = node.putObject("form");
 		form.put("output_size", OutputSize.QR_BILL_EXTRA_SPACE.name());
 		form.put("graphics_format", GraphicsFormat.PDF.name());
@@ -271,8 +271,8 @@ public class QRCodeTest
 		JsonNode resultNode = mapper.readTree(result.toString());
 		assertEquals(ArrayNode.class, resultNode.getClass());
 		assertEquals(1, resultNode.size());
-		JsonNode entry = resultNode.get(0).get("io_exception");
-		assertEquals("Source path 'C:\\Users\\christian\\x.pdf' does not exist", entry.asText());
+		JsonNode entry = resultNode.get(0).get("illegal_argument_exception");
+		assertEquals("Source path '" + nonExistentPath + "' does not exist", entry.asText().replace('\\', '/'));
 	}
 	
 	@Test
@@ -286,6 +286,100 @@ public class QRCodeTest
 		ObjectNode form = node.putObject("form");
 		form.put("output_size", OutputSize.QR_BILL_EXTRA_SPACE.name());
 		form.put("graphics_format", GraphicsFormat.PNG.name());
+		form.put("language", Language.DE.name());
+		node.put("iban", "CH4431999123000889012");
+		node.put("amount", 199.95);
+		node.put("currency", "CHF");
+		node.put("invoice", 10456);
+		ObjectNode creditor = node.putObject("creditor");
+		creditor.put("name", "Robert Schneider AG");
+		creditor.put("address", "Rue du Lac 1268/2/22");
+		creditor.put("city", "2501 Biel");
+		creditor.put("country", "CH");
+		node.put("message", "Abonnement für 2020");
+		ObjectNode debtor = node.putObject("debtor");
+		debtor.put("number", 9048);
+		debtor.put("name", "Pia-Maria Rutschmann-Schnyder");
+		debtor.put("address", "Grosse Marktgasse 28");
+		debtor.put("city", "9400 Rorschach");
+		debtor.put("country", "CH");
+		Object result = new SwissQRBillGenerator().generate(node.toString());
+		assertEquals("OK", result);	
+	}
+	
+	@Test
+	public void testWithoutAmount() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode node = mapper.createObjectNode();
+		ObjectNode path = node.putObject("path");
+		path.put("output", output);
+		path.put("invoice", invoice);
+		ObjectNode form = node.putObject("form");
+		form.put("output_size", OutputSize.QR_BILL_EXTRA_SPACE.name());
+		form.put("graphics_format", GraphicsFormat.PDF.name());
+		form.put("language", Language.DE.name());
+		node.put("iban", "CH4431999123000889012");
+		node.put("currency", "CHF");
+		node.put("invoice", 10456);
+		ObjectNode creditor = node.putObject("creditor");
+		creditor.put("name", "Robert Schneider AG");
+		creditor.put("address", "Rue du Lac 1268/2/22");
+		creditor.put("city", "2501 Biel");
+		creditor.put("country", "CH");
+		node.put("message", "Abonnement für 2020");
+		ObjectNode debtor = node.putObject("debtor");
+		debtor.put("number", 9048);
+		debtor.put("name", "Pia-Maria Rutschmann-Schnyder");
+		debtor.put("address", "Grosse Marktgasse 28");
+		debtor.put("city", "9400 Rorschach");
+		debtor.put("country", "CH");
+		Object result = new SwissQRBillGenerator().generate(node.toString());
+		assertEquals("OK", result);	
+	}
+	
+	@Test
+	public void testWith0Amount() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode node = mapper.createObjectNode();
+		ObjectNode path = node.putObject("path");
+		path.put("output", output);
+		path.put("invoice", invoice);
+		ObjectNode form = node.putObject("form");
+		form.put("output_size", OutputSize.QR_BILL_EXTRA_SPACE.name());
+		form.put("graphics_format", GraphicsFormat.PDF.name());
+		form.put("language", Language.DE.name());
+		node.put("iban", "CH4431999123000889012");
+		node.put("amount", 0);
+		node.put("currency", "CHF");
+		node.put("invoice", 10456);
+		ObjectNode creditor = node.putObject("creditor");
+		creditor.put("name", "Robert Schneider AG");
+		creditor.put("address", "Rue du Lac 1268/2/22");
+		creditor.put("city", "2501 Biel");
+		creditor.put("country", "CH");
+		node.put("message", "Abonnement für 2020");
+		ObjectNode debtor = node.putObject("debtor");
+		debtor.put("number", 9048);
+		debtor.put("name", "Pia-Maria Rutschmann-Schnyder");
+		debtor.put("address", "Grosse Marktgasse 28");
+		debtor.put("city", "9400 Rorschach");
+		debtor.put("country", "CH");
+		Object result = new SwissQRBillGenerator().generate(node.toString());
+		assertEquals("OK", result);	
+	}
+	
+	@Test
+	public void testQRBillOnly() throws JsonMappingException, JsonProcessingException
+	{
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode node = mapper.createObjectNode();
+		ObjectNode path = node.putObject("path");
+		path.put("output", output);
+		ObjectNode form = node.putObject("form");
+		form.put("output_size", OutputSize.QR_BILL_ONLY.name());
+		form.put("graphics_format", GraphicsFormat.PDF.name());
 		form.put("language", Language.DE.name());
 		node.put("iban", "CH4431999123000889012");
 		node.put("amount", 199.95);

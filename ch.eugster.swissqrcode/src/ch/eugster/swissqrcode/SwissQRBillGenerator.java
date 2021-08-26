@@ -1,8 +1,10 @@
 package ch.eugster.swissqrcode;
 
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
 import java.net.URI;
@@ -119,8 +121,10 @@ public class SwissQRBillGenerator
 	
 				// Setup bill
 				bill.setFormat(format);
-				JsonNode amount = node.get("amount");
-				bill.setAmountFromDouble(amount.equals(Double.valueOf(0L)) ? null : node.get("amount").asDouble());
+				if (node.get("amount") != null && node.get("amount").asDouble() > 0D)
+				{
+					bill.setAmountFromDouble(Double.valueOf(node.get("amount").asDouble()));
+				}
 				bill.setCurrency(node.get("currency").asText());
 				bill.setReferenceType(Bill.REFERENCE_TYPE_NO_REF);
 		
@@ -218,21 +222,69 @@ public class SwissQRBillGenerator
 					{
 						invoice = Paths.get(node.get("path").get("invoice").asText());
 					}
+					catch (IllegalArgumentException e)
+					{
+						ObjectNode msg = mapper.createObjectNode();
+						msg.put("illegal_argument_exception", e.getMessage());
+						result.add(msg);
+					}
 				}
 				
 				if (!Objects.isNull(invoice))
 				{
-					try
+					if (invoice.toFile().exists())
 					{
-						PDFCanvas canvas = new PDFCanvas(invoice, PDFCanvas.LAST_PAGE);
-						QRBill.draw(bill, canvas);
-						canvas.saveAs(output);
-						return "OK";
+						PDFCanvas canvas = null;
+						try
+						{
+							byte[] targetArray = null;
+							InputStream is = null;
+							try
+							{
+								is = new FileInputStream(invoice.toFile());
+								targetArray = new byte[is.available()];
+								is.read(targetArray);
+							}
+							finally
+							{
+								if (is != null)
+								{
+									is.close();
+								}
+							}
+
+							canvas = new PDFCanvas(targetArray, PDFCanvas.LAST_PAGE);
+							QRBill.draw(bill, canvas);
+							return "OK";
+						}
+						catch (IOException e)
+						{
+							ObjectNode msg = mapper.createObjectNode();
+							msg.put("io_exception", "Source path '" + e.getMessage() + "' does not exist");
+							result.add(msg);
+						}
+						finally
+						{
+							if (canvas != null)
+							{
+								try
+								{
+									canvas.saveAs(output);
+									canvas.close();
+								}
+								catch (IOException e)
+								{
+									ObjectNode msg = mapper.createObjectNode();
+									msg.put("io_exception", "Could not save target file '" + invoice.toString() + "'");
+									result.add(msg);
+								}
+							}
+						}
 					}
-					catch (IOException e)
+					else
 					{
 						ObjectNode msg = mapper.createObjectNode();
-						msg.put("io_exception", "Source path '" + e.getMessage() + "' does not exist");
+						msg.put("illegal_argument_exception", "Source path '" + invoice.toFile().getAbsolutePath() + "' does not exist");
 						result.add(msg);
 					}
 				}
@@ -248,10 +300,26 @@ public class SwissQRBillGenerator
 						}
 						if (output.toFile().createNewFile())
 						{
-							OutputStream os = new FileOutputStream(output.toFile());
-							os.write(bytes);
-							os.close();
+							OutputStream os = null;
+							try
+							{
+								os = new FileOutputStream(output.toFile());
+								os.write(bytes);
+							}
+							finally
+							{
+								if (os != null)
+								{
+									os.close();
+								}
+							}
 							return "OK";
+						}
+						else
+						{
+							ObjectNode msg = mapper.createObjectNode();
+							msg.put("io_exception", "Could not create file '" + output.toString() + "'");
+							result.add(msg);
 						}
 					} 
 					catch (FileNotFoundException e) 
