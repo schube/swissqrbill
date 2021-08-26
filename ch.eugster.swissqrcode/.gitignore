@@ -18,3 +18,4 @@ hs_err_pid*
 # File system
 .DS_Store
 /bin/*
+/bin/

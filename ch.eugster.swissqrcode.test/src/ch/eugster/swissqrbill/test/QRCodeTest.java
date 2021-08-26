@@ -1,4 +1,4 @@
-package ch.eugster.swissqrcode.test;
+package ch.eugster.swissqrbill.test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import ch.eugster.swissqrcode.SwissQRBillGenerator;
+import ch.eugster.swissqrbill.SwissQRBillGenerator;
 import net.codecrete.qrbill.generator.GraphicsFormat;
 import net.codecrete.qrbill.generator.Language;
 import net.codecrete.qrbill.generator.OutputSize;
@@ -33,7 +33,7 @@ public class QRCodeTest
 	@BeforeEach
 	public void beforeEach() throws URISyntaxException
 	{
-		String out = (System.getProperty("user.home") + File.separator + "bill.pdf");
+		String out = (System.getProperty("user.home") + File.separator + UUID.randomUUID() + ".pdf");
 		output = new File(out).toURI().toASCIIString();
 		URI uri = QRCodeTest.class.getResource("/invoice.pdf").toURI();
 		invoice = uri.toASCIIString();
@@ -380,6 +380,38 @@ public class QRCodeTest
 		ObjectNode form = node.putObject("form");
 		form.put("output_size", OutputSize.QR_BILL_ONLY.name());
 		form.put("graphics_format", GraphicsFormat.PDF.name());
+		form.put("language", Language.DE.name());
+		node.put("iban", "CH4431999123000889012");
+		node.put("amount", 199.95);
+		node.put("currency", "CHF");
+		node.put("invoice", 10456);
+		ObjectNode creditor = node.putObject("creditor");
+		creditor.put("name", "Robert Schneider AG");
+		creditor.put("address", "Rue du Lac 1268/2/22");
+		creditor.put("city", "2501 Biel");
+		creditor.put("country", "CH");
+		node.put("message", "Abonnement für 2020");
+		ObjectNode debtor = node.putObject("debtor");
+		debtor.put("number", 9048);
+		debtor.put("name", "Pia-Maria Rutschmann-Schnyder");
+		debtor.put("address", "Grosse Marktgasse 28");
+		debtor.put("city", "9400 Rorschach");
+		debtor.put("country", "CH");
+		Object result = new SwissQRBillGenerator().generate(node.toString());
+		assertEquals("OK", result);	
+	}
+	
+	@Test
+	public void testQRBillWithFilePath() throws JsonMappingException, JsonProcessingException
+	{
+		String out = (System.getProperty("java.io.tmpdir") + UUID.randomUUID() + ".pdf");
+		ObjectMapper mapper = new ObjectMapper();
+		ObjectNode node = mapper.createObjectNode();
+		ObjectNode path = node.putObject("path");
+		path.put("output", out);
+		ObjectNode form = node.putObject("form");
+		form.put("output_size", OutputSize.QR_BILL_ONLY.name());
+		form.put("graphics_format", GraphicsFormat.PNG.name());
 		form.put("language", Language.DE.name());
 		node.put("iban", "CH4431999123000889012");
 		node.put("amount", 199.95);

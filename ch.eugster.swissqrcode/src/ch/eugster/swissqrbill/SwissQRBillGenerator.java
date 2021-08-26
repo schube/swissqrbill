@@ -1,4 +1,4 @@
-package ch.eugster.swissqrcode;
+package ch.eugster.swissqrbill;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

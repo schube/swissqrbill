@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
-Bundle-Name: Swissqrcode
-Bundle-SymbolicName: ch.eugster.swissqrcode;singleton:=true
+Bundle-Name: Swissqrbill
+Bundle-SymbolicName: ch.eugster.swissqrbill;singleton:=true
 Bundle-Version: 1.0.0.qualifier
-Bundle-ClassPath: ch.eugster.swissqrcode,
+Bundle-ClassPath: ch.eugster.swissqrbill,
  lib/jackson-annotations-2.12.4.jar,
  lib/jackson-core-2.12.4.jar,
  lib/jackson-databind-2.12.4.jar,
@@ -16,5 +16,5 @@ Bundle-ClassPath: ch.eugster.swissqrcode,
 Bundle-Vendor: Christian Eugster
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Bundle-ActivationPolicy: lazy
-Automatic-Module-Name: ch.eugster.swissqrcode
-Export-Package: ch.eugster.swissqrcode
+Automatic-Module-Name: ch.eugster.swissqrbill
+Export-Package: ch.eugster.swissqrbill
