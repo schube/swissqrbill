@@ -292,48 +292,7 @@ public class SwissQRBillGenerator
 				{
 					// Generate QR bill
 					byte[] bytes = QRBill.generate(bill);
-					try 
-					{
-						if (output.toFile().exists())
-						{
-							output.toFile().delete();
-						}
-						if (output.toFile().createNewFile())
-						{
-							OutputStream os = null;
-							try
-							{
-								os = new FileOutputStream(output.toFile());
-								os.write(bytes);
-							}
-							finally
-							{
-								if (os != null)
-								{
-									os.close();
-								}
-							}
-							return "OK";
-						}
-						else
-						{
-							ObjectNode msg = mapper.createObjectNode();
-							msg.put("io_exception", "Could not create file '" + output.toString() + "'");
-							result.add(msg);
-						}
-					} 
-					catch (FileNotFoundException e) 
-					{
-						ObjectNode msg = mapper.createObjectNode();
-						msg.put("file_not_found_exception", e.getMessage());
-						result.add(msg);
-					} 
-					catch (IOException e) 
-					{
-						ObjectNode msg = mapper.createObjectNode();
-						msg.put("io_exception", e.getMessage());
-						result.add(msg);
-					}
+					return bytes;
 				}
 			}
 			else
